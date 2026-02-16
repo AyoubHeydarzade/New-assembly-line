@@ -1,6 +1,6 @@
 
 """
-manual_line_sim.py — Discrete‑event simulator for a 5‑station manual assembly line
+manual_line_sim.py — Discrete‑event simulator for a 6‑station manual assembly line
 with synthetic camera/wearable signals + an experiment harness for sweeps/replications.
 """
 from __future__ import annotations
@@ -209,8 +209,11 @@ class ExperimentHarness:
         return summary
 
 def default_line() -> List[StationSpec]:
-    return [StationSpec("S1_kitting", 22.0, 0.25, 0.002),
-            StationSpec("S2_fasteners", 18.0, 0.20, 0.002),
-            StationSpec("S3_alignment", 35.0, 0.30, 0.004),
-            StationSpec("S4_torque", 20.0, 0.18, 0.003),
-            StationSpec("S5_QC_pack", 15.0, 0.15, 0.001)]
+    return [
+        StationSpec("S1_kitting",     22.0, 0.25, 0.002),
+        StationSpec("S2_fasteners",   18.0, 0.20, 0.002),
+        StationSpec("S3_alignment",   35.0, 0.30, 0.004),
+        StationSpec("S4_torque",      20.0, 0.18, 0.003),
+        StationSpec("S5_QC_pack",     15.0, 0.15, 0.001),
+        StationSpec("S6_palletize",   12.0, 0.15, 0.001),  # <-- NEW station (edit name/params as you like)
+    ]
