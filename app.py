@@ -21,11 +21,13 @@ with st.sidebar:
     st.markdown("**Camera dropout (probability per logged event)**")
     camera_dropout = st.slider("camera_dropout", min_value=0.0, max_value=0.9, value=0.1, step=0.05)
 
-    st.markdown("**Buffer capacities (between S1-S2, S2-S3, S3-S4, S4-S5)**")
-    buf1 = st.number_input("Buffer 1", min_value=0, max_value=50, value=1, step=1)
-    buf2 = st.number_input("Buffer 2", min_value=0, max_value=50, value=2, step=1)
-    buf3 = st.number_input("Buffer 3", min_value=0, max_value=50, value=2, step=1)
-    buf4 = st.number_input("Buffer 4", min_value=0, max_value=50, value=1, step=1)
+   st.markdown("**Buffer capacities (between S1-S2, S2-S3, S3-S4, S4-S5, S5-S6)**")
+buf1 = st.number_input("Buffer 1", min_value=0, max_value=50, value=1, step=1)
+buf2 = st.number_input("Buffer 2", min_value=0, max_value=50, value=2, step=1)
+buf3 = st.number_input("Buffer 3", min_value=0, max_value=50, value=2, step=1)
+buf4 = st.number_input("Buffer 4", min_value=0, max_value=50, value=1, step=1)
+buf5 = st.number_input("Buffer 5", min_value=0, max_value=50, value=1, step=1)  # NEW
+
 
     st.markdown("**Station specs** (mean CT seconds, CV, base defect risk)")
     base_specs = default_line()
@@ -48,7 +50,7 @@ if "sim_result" not in st.session_state or reset_btn:
     st.session_state.logs_df = pd.DataFrame()
 
 if start_btn:
-    buffers = [buf1, buf2, buf3, buf4]
+    buffers = [buf1, buf2, buf3, buf4, buf5]
     sim = ManualLineSim(station_specs, [BufferSpec(c) for c in buffers], sim_time_s=sim_time_s, seed=seed, camera_dropout=camera_dropout)
     t0 = time.time()
     with st.status("🚀 Starting simulation...", expanded=True) as status:
@@ -122,8 +124,9 @@ with tabs[1]:
     if logs.empty:
         st.info("Run a simulation to see buffer dynamics.")
     else:
-        buf_plots = st.columns(4)
-        for i in range(4):
+     n_buffers = len(station_specs) - 1
+buf_plots = st.columns(n_buffers)
+for i in range(n_buffers):
             dfb = logs[(logs["event"] == "to_buffer") & (logs["station"] == i)][["t", "buffer_len"]].copy()
             dfb = dfb.sort_values("t")
             with buf_plots[i]:
@@ -137,7 +140,7 @@ with tabs[1]:
         finishes = logs[logs["event"] == "finish"]["station"].value_counts().rename("finishes")
         wip_df = pd.concat([starts, finishes], axis=1).fillna(0)
         wip_df["approx_in_service"] = (wip_df["starts"] - wip_df["finishes"]).clip(lower=0)
-        wip_df = wip_df.reindex(range(5)).fillna(0)
+     wip_df = wip_df.reindex(range(len(station_specs))).fillna(0)
         wip_df.index = [s.name for s in station_specs]
         st.markdown("**Approx. items in service by station (end of run)**")
         st.dataframe(wip_df[["approx_in_service"]], width="stretch")
@@ -192,7 +195,7 @@ with tabs[3]:
 with tabs[4]:
     st.subheader("Configuration Snapshot & Export Logs")
     st.json({"sim_time_s": sim_time_s, "seed": seed, "camera_dropout": camera_dropout,
-             "buffers": [buf1, buf2, buf3, buf4], "stations": [s.__dict__ for s in station_specs]})
+           "buffers": [buf1, buf2, buf3, buf4, buf5] , "stations": [s.__dict__ for s in station_specs]})
     if not logs.empty:
         csv = logs.to_csv(index=False).encode("utf-8")
         st.download_button("⬇️ Download logs (CSV)", data=csv, file_name="sim_logs.csv", mime="text/csv")
@@ -200,7 +203,11 @@ with tabs[4]:
 with tabs[5]:
     st.subheader("Batch Scenarios — compare policies")
     st.caption("Define buffer layouts and parameter grids; run replications; compare throughput/FPY.")
-    buf_str = st.text_input("Buffer layouts (one per line; values S1-S2,S2-S3,S3-S4,S4-S5)", value="1,2,2,0\n1,3,3,1")
+   buf_str = st.text_input(
+    "Buffer layouts (one per line; values S1-S2,S2-S3,S3-S4,S4-S5,S5-S6)",
+    value="1,2,2,0,1\n1,3,3,1,1"
+)
+
     drop_str = st.text_input("Camera dropout values (comma-separated)", value="0.0,0.1,0.3")
     s3_str = st.text_input("S3 mean CT values (sec, comma-separated)", value="30,35,40")
     reps = st.number_input("Replications per scenario", min_value=3, max_value=50, value=10, step=1)
@@ -211,9 +218,9 @@ with tabs[5]:
         buf_lists = []; valid = True
         for line in buf_lines:
             try:
-                parts = [int(x.strip()) for x in line.split(',')]; assert len(parts) == 4; buf_lists.append(parts)
+       parts = [int(x.strip()) for x in line.split(',')]; assert len(parts) == 5; buf_lists.append(parts)
             except Exception:
-                st.error(f"Invalid buffer line: '{line}'. Expect 'a,b,c,d'."); valid = False; break
+              st.error(f"Invalid buffer line: '{line}'. Expect 'a,b,c,d,e'.");  valid = False; break
         if valid:
             try:
                 drops = [float(x.strip()) for x in drop_str.split(',')]
